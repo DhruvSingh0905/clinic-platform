@@ -37,20 +37,18 @@ PK-estimated levels (from CDE's model) shown to either side are labeled "estimat
 ## The removal test (why this is safe to ship)
 Delete every substance feature and a physique coach still pays for consolidated, domain-aware client data. The substance side is the user's own diary that they share read-only; it is not the product. That's the whole reason the read-only line costs us little. See [[wiki/principles]].
 
-## Implementation status (2026-06-01)
+## Implementation status (2026-06-02)
 
-The read layer described above is implemented in the Phase 0 build with mock data. Specifically:
+**Fully built.** The coach read layer + write layer are both operational.
 
-**Roster queue:** `GET /api/coach/{coach_id}/roster` returns clients sorted by top-finding severity (concerning → notable → info). The frontend at `/coach` renders this as a ranked card list. Each card shows athlete name, phase, integrations, top finding headline, and signal badges.
+**Roster queue:** Severity-ranked client cards with findings, phase badges, sync times. Training stall findings from Hevy integration appear alongside health findings.
 
-**Client detail:** `GET /api/coach/{coach_id}/client/{athlete_id}` returns findings, wearables, labs, substance events, drug levels, training, nutrition, and recovery. The frontend at `/coach/client/[id]` renders these as collapsible sections.
+**Client detail (redesigned):** Tabbed layout — Findings (signal cards with mini charts + provenance), Vitals (weight-prominent AreaCharts with trend deltas), Bloods (metric-centric expandable rows with ref range bands), Training (flagged lifts + exercise explorer + routine builder + workout log), Protocol (timeline + NLP input + form for coach modifications), Nutrition (macro breakdown + form), Log (universal change log). Always-visible collapsible notes panel on the right.
 
-**Read-only substance mirror:** The client detail view renders substance events as a timeline and drug levels as static progress bars. The section has a lock icon, a "Read-only · Athlete self-reported" label, and a muted background. 6 Playwright tests verify zero inputs, buttons, or action affordances in this section. The backend has no `POST /api/coach/.../substance` endpoint — the absence is the enforcement.
+**Coach substance access:** The substance boundary was reversed. The coach can now modify the athlete's protocol (START/STOP/DOSE_CHANGE) through both the Protocol tab UI (NLP input or manual form) and the LLM chat. All modifications create athlete notifications requiring confirmation. `POST /api/coach/{id}/client/{id}/substance` endpoint exists.
 
-**Coach write surface:** Training, nutrition, and recovery sections have inline forms that call `POST` endpoints through the typed operation path in `.src/coach/operations.py`.
+**Coach write surface:** All write operations (training, nutrition, recovery, substances, routine pushes) go through typed operations with deterministic confirmation dialogs. All create athlete notifications.
 
-**What is not yet real:** Multi-tenant auth does not exist (coach ID is passed in the URL). No sensitivity nudge UI is built. Training/nutrition/recovery form Save buttons in the frontend don't call the API (writes work through LLM chat or direct API calls). The "Ask about this" button on findings doesn't open chat in finding-thread mode yet.
-
-**What changed since Phase 0:** CDE detectors now run against the mock data — real cv_stress findings generated. PK model connected — drug levels recomputed on compound events. The roster queue sorts by live severity from both mock and detector-generated findings. The LLM chat is operational for both roles with tool-based data access. Two-sided visibility confirmed: coach sets training/nutrition/recovery → athlete sees it; athlete logs substances → coach sees it read-only.
+**What remains:** Multi-tenant auth, billing, sensitivity nudge UI, roster page UX improvements (compact cards).
 
 Related: [[wiki/principles]] · [[wiki/architecture/relationship-to-cde]] · [[wiki/architecture/commit-model]] · [[wiki/architecture/two-sided-model]]

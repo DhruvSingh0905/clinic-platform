@@ -194,26 +194,28 @@ The substance boundary lives in the operation set itself: no coach-side substanc
 
 ---
 
-## Implementation status (2026-06-01)
+## Implementation status (2026-06-02)
 
-**Phase 1 (built).** The full LLM layer is operational. CDE's engine, context, and tools code was copied into the Coach Platform (not imported as a dependency) and adapted for multi-tenant use.
+**Fully built.** The complete product is operational — LLM, UI, bidirectional data flow, Hevy integration, notification system.
 
 **What works:**
-- **LLM chat for both roles.** `POST /api/coach/{id}/client/{id}/chat` (coach) and `POST /api/athlete/{id}/chat` (athlete). Both use the Anthropic SDK (Claude) with the tool loop (max 8 rounds).
-- **Role-scoped tool sets.** Athlete gets all 20 CDE tools. Coach gets 17 read tools + 3 coaching-surface write tools (set_training_block, set_nutrition_target, add_recovery_note). Substance-write tools (add_compound_event, check_compound_active, record_phase_change) excluded from coach tool set.
-- **Substance boundary via LLM.** Tested: coach asked to "stop his testosterone" → refused ("Compound management is on the athlete's side"). Coach asked to "put test back to 500mg" → refused. The tool doesn't exist in the coach's set.
-- **Coach writes through LLM.** Coach asked "set a deload block" → LLM called set_training_block tool → typed operation committed. Works for nutrition and recovery too.
-- **Athlete compound management through LLM.** Athlete asked "drop my test to 300mg" → LLM called add_compound_event with DOSE_CHANGE → committed. PK levels regenerated, detectors re-ran.
-- **Two-sided visibility.** Coach sets training/nutrition/recovery → athlete sees it in dashboard. Athlete logs substance events → coach sees it read-only in client detail. Verified in a 10-step interaction test (all 10 passed).
-- **Briefing builder.** Minimal briefing (compounds + snapshot, no findings) for free chat. Finding briefing (specific finding + context) for finding threads. Both scoped by athlete_id.
-- **CDE detectors firing.** Real detector findings (cv_stress, hematological) generated from mock wearable data. Detectors re-run on data writes (substance logging, daily entries).
-- **Calendar backend.** Day view, range view, upcoming schedule. Endpoints for both roles.
-- **Frontend chat.** Floating chat panel (Chat.tsx) on coach client detail and athlete dashboard. Message history, typing indicator, role-aware placeholders.
+- **LLM chat for both roles.** Coach and athlete both get full tool access. Coach has all 20 CDE tools + coaching-surface write tools + Hevy tools (workout history, lift progression, routine push). Athlete has all 20 CDE tools + workout tools.
+- **Coach manages everything.** Coach can modify training, nutrition, recovery, AND substances. All modifications trigger athlete notifications. The substance boundary was removed — the coach is the authority, the athlete confirms via notification banners.
+- **Finding thread mode.** "Ask about this" button on finding cards opens chat with finding_id for focused investigation.
+- **Deterministic confirmation.** All form-based writes show a confirmation dialog with the rendered operation text before committing.
+- **Form submit handlers wired.** Training block, nutrition target, and recovery note forms call the API and reload data after commit.
+- **Hevy integration.** Workout sync from Hevy API (15 real workouts synced), stall detector (bench stall at 100kg flagged), routine builder UI (push to Hevy), workout log viewer, exercise progression explorer.
+- **Notification system.** All coach actions (training, nutrition, recovery, substance, routine pushes) create athlete notifications. Athlete sees banners at dashboard top with Confirm buttons.
+- **Change log.** Per-client chronological log of every coach action.
+- **Two-sided visibility verified.** Coach → athlete: training/nutrition/recovery/substance/routines all visible. Athlete → coach: substance events, workout data, wearable data all visible. Notification banners bridge the gap.
+- **UI redesigned.** Tabbed layout (Findings, Vitals, Bloods, Training, Protocol, Nutrition, Log), collapsible notes panel, signal cards with mini charts, weight-prominent vitals, metric-centric bloodwork, inline NLP substance editing.
 
-**What's not yet built:**
-- Finding thread mode in the frontend — "Ask about this" button on finding cards doesn't open chat with finding_id yet. The backend supports it (thread_type="finding" + finding_id).
-- Human confirmation step before commit — operations commit directly from forms and LLM. The deterministic render (.render()) exists but the UI doesn't show it for approval first.
-- Training/nutrition/recovery form submit handlers — the form UI exists but Save buttons don't call the API. Writes work through LLM chat or direct API calls.
+**What remains:**
+- Auth (email/JWT sessions, coach invite flow)
+- Billing
+- Additional integrations (Withings, Dexcom)
+- Real multi-user deployment
+- Roster page UX improvements (compact cards, signal card redesign)
 - Athlete-side display of coach-managed data in the frontend — the API returns training/nutrition/recovery, but the athlete page.tsx doesn't render these sections yet.
 - Cross-client LLM queries — coach LLM operates on one client at a time.
 

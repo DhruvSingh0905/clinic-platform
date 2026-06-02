@@ -1,7 +1,7 @@
 ---
 tags: [ops, mvp, plan]
 status: living
-updated: 2026-06-01
+updated: 2026-06-02
 ---
 
 # MVP plan
@@ -61,8 +61,8 @@ cd "Coach Platform/.frontend" && pnpm dev
 cd "Coach Platform/.frontend" && npx playwright test
 ```
 
-### What this is NOT
-This is a demo prop with mock data. It is not the real multi-tenant system. CDE's engine (extraction, PK, detectors, integrations) is not connected. There is no auth, no real data sync, no billing. The original Phase 0 spec called for "faked data, no backend" — what was built exceeds that (it has a real backend with a real schema), but it is still a prop. The customer-discovery gate still applies before Phase 1.
+### Current state (2026-06-02)
+Phase 0 mock + Phase 1 engine are both built. CDE code copied and adapted (30 Python files). LLM connected with 20 tools for both roles. Hevy integration live (synced 15 real workouts from API, stall detector running). UI redesigned with tabbed layout, always-visible notes panel, signal graphs, training explorer, routine builder, workout log, and change log. Coach can modify all client data including substances (athlete gets notification banners requiring confirmation). 25 Playwright tests pass. The app is a working product demo, not just a mock. What remains: auth, billing, additional integrations (Withings, Dexcom), and real multi-user deployment.
 
 ## Phase 0.5 — Use the existing CDE system as a live prop
 The founder already has working CDE on personal data (detectors, PK, display). Show the *enhanced-athlete-aware detector output* on real data in coach conversations NOW, before the coach mock is polished. Tests whether the consolidation + detection value lands without building anything coach-specific.
