@@ -1,0 +1,28 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+
+# Database
+*.db
+*.db-shm
+*.db-wal
+
+# Environment
+.env
+
+# Node
+.frontend/node_modules/
+.frontend/.next/
+.frontend/test-results/
+.frontend/playwright-report/
+.frontend/.playwright-mcp/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Plans
+docs/superpowers/
