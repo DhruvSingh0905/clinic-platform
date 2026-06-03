@@ -185,44 +185,63 @@ export default function AthleteDashboard() {
         </div>
       </header>
 
-      {/* Notification banner — coach changes requiring confirmation */}
-      {notifications.length > 0 && (
-        <div className="max-w-5xl mx-auto px-8 pt-4">
-          <div className="space-y-2">
-            {notifications.map((n) => (
-              <motion.div
-                key={n.id}
-                initial={{ opacity: 0, y: -8 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="rounded-xl p-4 flex items-start gap-3"
-                style={{ background: "var(--color-accent-light)", border: "1px solid var(--color-accent-primary)" }}
+      {/* Message queue — always visible */}
+      <div className="max-w-5xl mx-auto px-8 pt-4">
+        <div
+          className="rounded-xl overflow-hidden"
+          style={{ border: notifications.length > 0 ? "1px solid var(--color-accent-primary)" : "1px solid var(--color-border-card)", background: "var(--color-bg-card)" }}
+        >
+          <div className="px-4 py-3 flex items-center justify-between" style={{ background: notifications.length > 0 ? "var(--color-accent-light)" : "var(--color-bg-secondary)", borderBottom: `1px solid ${notifications.length > 0 ? "var(--color-accent-primary)" : "var(--color-border-card)"}` }}>
+            <div className="flex items-center gap-2">
+              {notifications.length > 0 ? (
+                <>
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="var(--color-accent-primary)" strokeWidth="1.5" strokeLinecap="round">
+                    <circle cx="8" cy="8" r="6" /><path d="M8 5v3.5M8 10.5h.01" />
+                  </svg>
+                  <span className="text-sm font-semibold" style={{ color: "var(--color-accent-primary)" }}>
+                    {notifications.length} update{notifications.length !== 1 ? "s" : ""} from your coach
+                  </span>
+                </>
+              ) : (
+                <>
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="var(--color-success)" strokeWidth="1.5" strokeLinecap="round">
+                    <circle cx="8" cy="8" r="6" /><path d="M5.5 8l2 2 3-3.5" />
+                  </svg>
+                  <span className="text-sm" style={{ color: "var(--color-text-muted)" }}>All caught up — no new messages</span>
+                </>
+              )}
+            </div>
+            {notifications.length > 0 && (
+              <button
+                onClick={async () => {
+                  await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8001"}/api/athlete/athlete-001/notifications/read`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ notification_ids: null }),
+                  });
+                  setNotifications([]);
+                }}
+                className="text-xs font-medium px-4 py-1.5 rounded-lg"
+                style={{ background: "var(--color-accent-primary)", color: "white" }}
               >
-                <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="var(--color-accent-primary)" strokeWidth="1.5" strokeLinecap="round" className="mt-0.5 shrink-0">
-                  <circle cx="9" cy="9" r="7" /><path d="M9 6v3.5M9 12h.01" />
-                </svg>
-                <div className="flex-1">
-                  <p className="text-sm font-medium" style={{ color: "var(--color-text-primary)" }}>{n.title}</p>
-                  {n.body && <p className="text-xs mt-0.5" style={{ color: "var(--color-text-secondary)" }}>{n.body}</p>}
-                </div>
-                <button
-                  onClick={async () => {
-                    await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8001"}/api/athlete/athlete-001/notifications/read`, {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ notification_ids: [n.id] }),
-                    });
-                    setNotifications((prev) => prev.filter((x) => x.id !== n.id));
-                  }}
-                  className="text-xs font-medium px-3 py-1.5 rounded-lg shrink-0"
-                  style={{ background: "var(--color-accent-primary)", color: "white" }}
-                >
-                  Confirm
-                </button>
-              </motion.div>
-            ))}
+                Acknowledge all
+              </button>
+            )}
           </div>
+          {notifications.length > 0 && (
+            <div className="max-h-[240px] overflow-y-auto divide-y" style={{ borderColor: "var(--color-border-card)" }}>
+              {notifications.map((n) => (
+                <div key={n.id} className="px-4 py-2.5 flex items-start gap-3">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm" style={{ color: "var(--color-text-primary)" }}>{n.title}</p>
+                    {n.body && <p className="text-xs mt-0.5 truncate" style={{ color: "var(--color-text-muted)" }}>{n.body}</p>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
-      )}
+      </div>
 
       <main className="max-w-5xl mx-auto px-8 py-8">
         {/* Header */}
