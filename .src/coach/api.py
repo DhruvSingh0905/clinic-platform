@@ -580,12 +580,18 @@ def coach_modify_substance(coach_id: str, athlete_id: str, req: SubstanceEventRe
 
 @app.post("/api/athlete/{athlete_id}/upload")
 async def upload_bloodwork(athlete_id: str, file: UploadFile = File(...)):
-    """Upload bloodwork PDF/image. Extract, validate, load, run detectors."""
+    """Upload bloodwork PDF/image. Extract, validate, load, store PDF, run detectors."""
     conn = get_db()
     try:
         suffix = os.path.splitext(file.filename or "upload.pdf")[1]
+        content = await file.read()
+
+        # Store PDF persistently
+        from coach.storage import store_pdf
+        stored_path = store_pdf(athlete_id, content, file.filename or f"upload{suffix}")
+
+        # Write temp file for extraction
         with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
-            content = await file.read()
             tmp.write(content)
             tmp_path = tmp.name
 
@@ -600,7 +606,7 @@ async def upload_bloodwork(athlete_id: str, file: UploadFile = File(...)):
                 return {"status": "rejected", "reason": extraction.rejection_reason}
 
             validated = validate_extraction(extraction)
-            count = load_bloodwork(conn, validated, user_id=athlete_id)
+            count, source_doc_id = load_bloodwork(conn, validated, user_id=athlete_id, raw_storage_path=stored_path)
             findings = after_data_write(conn, "bloodwork", athlete_id)
 
             return {
@@ -608,6 +614,7 @@ async def upload_bloodwork(athlete_id: str, file: UploadFile = File(...)):
                 "results_count": count,
                 "draw_date": extraction.draw_date,
                 "findings_count": len(findings),
+                "source_document_id": source_doc_id,
             }
         finally:
             os.unlink(tmp_path)
@@ -965,6 +972,144 @@ def get_changelog(coach_id: str, athlete_id: str, limit: int = 50):
                 })
         entries.sort(key=lambda e: e["timestamp"], reverse=True)
         return {"changelog": entries[:limit]}
+    finally:
+        conn.close()
+
+
+# ── Document endpoints (bloodwork PDFs) ──
+
+@app.get("/api/coach/{coach_id}/client/{athlete_id}/documents")
+def get_client_documents(coach_id: str, athlete_id: str):
+    conn = get_db()
+    try:
+        docs = conn.execute("""
+            SELECT id, source_type, uploaded_at, raw_storage_path, metadata_json
+            FROM source_document WHERE user_id = ? ORDER BY uploaded_at DESC
+        """, (athlete_id,)).fetchall()
+        result = []
+        for d in docs:
+            meta = json.loads(d["metadata_json"]) if d["metadata_json"] else {}
+            result.append({
+                "id": d["id"], "source_type": d["source_type"],
+                "uploaded_at": d["uploaded_at"],
+                "draw_date": meta.get("draw_date"),
+                "has_file": bool(d["raw_storage_path"]),
+            })
+        return {"documents": result}
+    finally:
+        conn.close()
+
+@app.get("/api/coach/{coach_id}/client/{athlete_id}/documents/{doc_id}")
+def serve_client_document(coach_id: str, athlete_id: str, doc_id: int):
+    conn = get_db()
+    try:
+        doc = conn.execute("SELECT raw_storage_path, user_id FROM source_document WHERE id = ?", (doc_id,)).fetchone()
+        if not doc or doc["user_id"] != athlete_id:
+            raise HTTPException(status_code=404, detail="Document not found")
+        if not doc["raw_storage_path"]:
+            raise HTTPException(status_code=404, detail="No file stored")
+        from coach.storage import get_pdf_path
+        path = get_pdf_path(doc["raw_storage_path"])
+        if not path.exists():
+            raise HTTPException(status_code=404, detail="File missing")
+        from fastapi.responses import FileResponse
+        return FileResponse(str(path), media_type="application/pdf", headers={"Content-Disposition": "inline"})
+    finally:
+        conn.close()
+
+
+# ── Check-in scheduling ──
+
+class CheckInRequest(BaseModel):
+    date: str
+    time: str = "12:00"
+    description: Optional[str] = None
+
+class CheckInNoteRequest(BaseModel):
+    notes_text: str
+
+@app.post("/api/coach/{coach_id}/client/{athlete_id}/schedule/checkin")
+def schedule_checkin(coach_id: str, athlete_id: str, req: CheckInRequest):
+    conn = get_db()
+    try:
+        conn.execute("""
+            INSERT INTO scheduled_event (user_id, event_type, scheduled_date, scheduled_time, description, coach_id, status, created_by)
+            VALUES (?, 'check_in', ?, ?, ?, ?, 'upcoming', ?)
+        """, (athlete_id, req.date, req.time, req.description, coach_id, coach_id))
+        event_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+
+        # Google Calendar sync (if configured)
+        gcal_id = None
+        try:
+            from coach.integrations.google_calendar import create_calendar_event, get_google_calendar_service
+            service = get_google_calendar_service(coach_id)
+            if service:
+                athlete_row = conn.execute("SELECT name, email FROM athlete WHERE id = ?", (athlete_id,)).fetchone()
+                summary = f"Check-in: {athlete_row['name'] if athlete_row else athlete_id}"
+                gcal_id = create_calendar_event(service, summary, req.description or "", f"{req.date}T{req.time}:00", f"{req.date}T{req.time}:00")
+                if gcal_id:
+                    conn.execute("UPDATE scheduled_event SET google_calendar_event_id = ? WHERE id = ?", (gcal_id, event_id))
+        except Exception:
+            pass  # Google Calendar not configured — that's fine
+
+        from coach.hevy import create_notification
+        create_notification(conn, athlete_id, coach_id, "coach", "checkin_scheduled",
+                            f"Check-in scheduled for {req.date} at {req.time}", req.description, None)
+        conn.commit()
+        return {"status": "scheduled", "event_id": event_id, "google_calendar_id": gcal_id}
+    finally:
+        conn.close()
+
+@app.get("/api/coach/{coach_id}/client/{athlete_id}/checkins")
+def get_checkins(coach_id: str, athlete_id: str):
+    conn = get_db()
+    try:
+        events = conn.execute("""
+            SELECT se.id, se.scheduled_date, se.scheduled_time, se.description, se.status, se.google_calendar_event_id
+            FROM scheduled_event se WHERE se.user_id = ? AND se.event_type = 'check_in'
+            ORDER BY se.scheduled_date DESC
+        """, (athlete_id,)).fetchall()
+        checkins = []
+        for e in events:
+            notes = conn.execute("SELECT id, notes_text, created_at FROM check_in_note WHERE scheduled_event_id = ? ORDER BY created_at", (e["id"],)).fetchall()
+            checkins.append({**dict(e), "notes": [dict(n) for n in notes]})
+        return {"checkins": checkins}
+    finally:
+        conn.close()
+
+@app.post("/api/coach/{coach_id}/client/{athlete_id}/checkin/{event_id}/notes")
+def add_checkin_notes(coach_id: str, athlete_id: str, event_id: int, req: CheckInNoteRequest):
+    conn = get_db()
+    try:
+        conn.execute("""
+            INSERT INTO check_in_note (scheduled_event_id, coach_id, athlete_id, notes_text) VALUES (?, ?, ?, ?)
+        """, (event_id, coach_id, athlete_id, req.notes_text))
+        conn.execute("UPDATE scheduled_event SET status = 'completed' WHERE id = ?", (event_id,))
+        conn.commit()
+        return {"status": "notes_added"}
+    finally:
+        conn.close()
+
+
+# ── Coach cross-roster calendar ──
+
+@app.get("/api/coach/{coach_id}/calendar")
+def get_coach_calendar(coach_id: str, start: str = "", end: str = ""):
+    conn = get_db()
+    try:
+        if not start:
+            start = date.today().isoformat()
+        if not end:
+            end = (date.today() + __import__("datetime").timedelta(days=14)).isoformat()
+        events = conn.execute("""
+            SELECT se.id, se.user_id as athlete_id, a.name as athlete_name,
+                   se.event_type, se.scheduled_date, se.scheduled_time, se.description, se.status
+            FROM scheduled_event se
+            JOIN athlete a ON se.user_id = a.id
+            WHERE se.coach_id = ? AND se.scheduled_date BETWEEN ? AND ?
+            ORDER BY se.scheduled_date, se.scheduled_time
+        """, (coach_id, start, end)).fetchall()
+        return {"events": [dict(e) for e in events], "start": start, "end": end}
     finally:
         conn.close()
 

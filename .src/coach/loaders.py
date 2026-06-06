@@ -63,19 +63,24 @@ def load_bloodwork(
     conn: sqlite3.Connection,
     extraction: ValidatedExtraction,
     user_id: str = "default",
-) -> int:
-    """Load validated bloodwork extraction into the canonical store."""
+    raw_storage_path: str | None = None,
+) -> tuple[int, int]:
+    """Load validated bloodwork extraction into the canonical store.
+    Returns (count_of_metrics_loaded, source_document_id).
+    """
     if extraction.document_rejected:
-        return 0
+        return 0, 0
 
     # Use draw date or fall back to today
     obs_date = extraction.draw_date or date.today().isoformat()
 
-    # Create source document
+    # Create source document with storage path and metadata
+    import json as _json
+    metadata = _json.dumps({"source_file": extraction.source_file, "draw_date": obs_date})
     cursor = conn.execute(
-        """INSERT INTO source_document (user_id, source_type, original_filename, extractor_version)
-           VALUES (?, 'LAB_PDF', ?, 'v0.1.0')""",
-        (user_id, extraction.source_file),
+        """INSERT INTO source_document (user_id, source_type, raw_storage_path, extractor_version, metadata_json)
+           VALUES (?, 'LAB_PDF', ?, 'v0.1.0', ?)""",
+        (user_id, raw_storage_path, metadata),
     )
     source_id = cursor.lastrowid
 
@@ -116,7 +121,7 @@ def load_bloodwork(
         count += 1
 
     conn.commit()
-    return count
+    return count, source_id
 
 
 def load_apple_health(

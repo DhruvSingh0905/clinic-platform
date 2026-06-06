@@ -101,6 +101,55 @@ HEVY_TOOLS = [
     },
 ]
 
+CHECKIN_TOOLS = [
+    {
+        "name": "schedule_checkin",
+        "description": "Schedule a check-in meeting with the athlete. Syncs to Google Calendar if configured.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "date": {"type": "string", "description": "YYYY-MM-DD"},
+                "time": {"type": "string", "description": "HH:MM (24h format)", "default": "12:00"},
+                "description": {"type": "string", "description": "Check-in agenda or notes"},
+            },
+            "required": ["date"],
+        },
+    },
+    {
+        "name": "get_checkin_notes",
+        "description": "Get recent check-in notes. Use when coach asks 'what did we discuss last time?' or 'last check-in notes'.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "limit": {"type": "integer", "description": "Number of recent check-ins", "default": 5},
+            },
+        },
+    },
+    {
+        "name": "add_checkin_notes",
+        "description": "Add notes after a completed check-in. These become data the LLM can reference later.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "event_id": {"type": "integer", "description": "The check-in event ID"},
+                "notes_text": {"type": "string", "description": "Check-in notes content"},
+            },
+            "required": ["event_id", "notes_text"],
+        },
+    },
+    {
+        "name": "get_bloodwork_document",
+        "description": "Look up bloodwork for a specific date. Returns extracted lab values and a link to the source PDF if available.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "draw_date": {"type": "string", "description": "Date to look up (YYYY-MM-DD)"},
+            },
+            "required": ["draw_date"],
+        },
+    },
+]
+
 HEVY_WRITE_TOOLS = [
     {
         "name": "push_routine_to_hevy",
@@ -140,7 +189,7 @@ HEVY_WRITE_TOOLS = [
     },
 ]
 
-COACH_TOOLS = COACH_CDE_TOOLS + COACHING_SURFACE_TOOLS + HEVY_TOOLS + HEVY_WRITE_TOOLS
+COACH_TOOLS = COACH_CDE_TOOLS + COACHING_SURFACE_TOOLS + HEVY_TOOLS + HEVY_WRITE_TOOLS + CHECKIN_TOOLS
 ATHLETE_TOOLS = TOOL_DEFINITIONS + HEVY_TOOLS  # All CDE tools + workout tools
 
 BASE_RULES = """You are the Coach Platform assistant — a health data intelligence system for enhanced athletes and their physique coaches.
@@ -227,6 +276,60 @@ def _execute_tool_for_role(
     # Coach coaching-surface writes — also notify athlete
     if role == "coach" and tool_name in ("set_training_block", "set_nutrition_target", "add_recovery_note"):
         pass  # handled above with commit_operation, notification handled at API level
+
+    # Check-in tools
+    if tool_name == "schedule_checkin":
+        from coach.database import get_db as _get_db
+        _conn = conn
+        _conn.execute("""
+            INSERT INTO scheduled_event (user_id, event_type, scheduled_date, scheduled_time, description, coach_id, status, created_by)
+            VALUES (?, 'check_in', ?, ?, ?, ?, 'upcoming', ?)
+        """, (user_id, tool_input.get("date"), tool_input.get("time", "12:00"), tool_input.get("description"), coach_id, coach_id))
+        _conn.commit()
+        from coach.hevy import create_notification
+        create_notification(_conn, user_id, coach_id, "coach", "checkin_scheduled",
+                            f"Check-in scheduled for {tool_input.get('date')} at {tool_input.get('time', '12:00')}", tool_input.get("description"), None)
+        return f"Check-in scheduled for {tool_input.get('date')} at {tool_input.get('time', '12:00')}. Athlete notified."
+
+    if tool_name == "get_checkin_notes":
+        limit = tool_input.get("limit", 5)
+        rows = conn.execute("""
+            SELECT se.scheduled_date, se.description, cin.notes_text, cin.created_at
+            FROM check_in_note cin
+            JOIN scheduled_event se ON cin.scheduled_event_id = se.id
+            WHERE cin.athlete_id = ?
+            ORDER BY cin.created_at DESC LIMIT ?
+        """, (user_id, limit)).fetchall()
+        if not rows:
+            return "No check-in notes found."
+        lines = ["RECENT CHECK-IN NOTES:\n"]
+        for r in rows:
+            lines.append(f"Date: {r['scheduled_date']}")
+            if r["description"]:
+                lines.append(f"Agenda: {r['description']}")
+            lines.append(f"Notes: {r['notes_text']}")
+            lines.append("")
+        return "\n".join(lines)
+
+    if tool_name == "add_checkin_notes":
+        conn.execute("INSERT INTO check_in_note (scheduled_event_id, coach_id, athlete_id, notes_text) VALUES (?, ?, ?, ?)",
+                     (tool_input["event_id"], coach_id or "unknown", user_id, tool_input["notes_text"]))
+        conn.execute("UPDATE scheduled_event SET status = 'completed' WHERE id = ?", (tool_input["event_id"],))
+        conn.commit()
+        return f"Check-in notes saved for event {tool_input['event_id']}."
+
+    if tool_name == "get_bloodwork_document":
+        draw_date = tool_input.get("draw_date", "")
+        # Get panel snapshot for that date
+        panel = execute_tool(conn, "get_panel_snapshot", {"draw_date": draw_date}, user_id=user_id)
+        # Check if source PDF exists
+        doc = conn.execute("""
+            SELECT id, raw_storage_path, metadata_json FROM source_document
+            WHERE user_id = ? AND source_type = 'LAB_PDF' AND metadata_json LIKE ?
+        """, (user_id, f'%{draw_date}%')).fetchone()
+        if doc and doc["raw_storage_path"]:
+            return f"{panel}\n\n[PDF:doc_id={doc['id']}] Source PDF available — view in Documents tab."
+        return panel
 
     # Hevy routine push (coach only)
     if tool_name == "push_routine_to_hevy":

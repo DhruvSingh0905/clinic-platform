@@ -23,3 +23,10 @@ DEXCOM_CLIENT_ID = os.getenv("DEXCOM_CLIENT_ID", "")
 DEXCOM_CLIENT_SECRET = os.getenv("DEXCOM_CLIENT_SECRET", "")
 DEXCOM_SANDBOX = os.getenv("DEXCOM_SANDBOX", "true").lower() == "true"
 OAUTH_CALLBACK_BASE = os.getenv("OAUTH_CALLBACK_BASE", "http://localhost:8001")
+
+# File storage
+UPLOADS_DIR = os.getenv("UPLOADS_DIR", "uploads")
+
+# Google Calendar
+GOOGLE_CALENDAR_CREDENTIALS_PATH = os.getenv("GOOGLE_CALENDAR_CREDENTIALS_PATH", "")
+GOOGLE_CALENDAR_TOKEN_PATH = os.getenv("GOOGLE_CALENDAR_TOKEN_PATH", "google_token.json")

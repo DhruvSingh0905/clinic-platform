@@ -211,13 +211,25 @@ def init_db(conn: sqlite3.Connection):
         user_id         TEXT NOT NULL,
         event_type      TEXT NOT NULL,
         scheduled_date  TEXT NOT NULL,
+        scheduled_time  TEXT,
         compound_id     TEXT,
         description     TEXT,
         recurring       INTEGER NOT NULL DEFAULT 0,
         recurrence_rule TEXT,
         status          TEXT NOT NULL DEFAULT 'upcoming',
         created_by      TEXT DEFAULT 'system',
+        coach_id        TEXT,
+        google_calendar_event_id TEXT,
         created_at      TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS check_in_note (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        scheduled_event_id INTEGER REFERENCES scheduled_event(id),
+        coach_id TEXT NOT NULL,
+        athlete_id TEXT NOT NULL,
+        notes_text TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
     -- ══════════════════════════════════════════════════════════
@@ -366,5 +378,7 @@ def init_db(conn: sqlite3.Connection):
     CREATE INDEX IF NOT EXISTS idx_workout_set_exercise ON workout_set(user_id, exercise_template_id);
     CREATE INDEX IF NOT EXISTS idx_lift_prog_user_ex ON lift_progression(user_id, exercise_template_id, session_date);
     CREATE INDEX IF NOT EXISTS idx_notification_user ON notification(user_id, read, created_at);
+    CREATE INDEX IF NOT EXISTS idx_checkin_note_event ON check_in_note(scheduled_event_id);
+    CREATE INDEX IF NOT EXISTS idx_checkin_note_athlete ON check_in_note(athlete_id, created_at);
     """)
     conn.commit()

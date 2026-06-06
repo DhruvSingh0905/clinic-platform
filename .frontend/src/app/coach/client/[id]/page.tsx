@@ -16,6 +16,7 @@ import TrainingSection from "@/components/client/TrainingSection";
 import SubstanceSection from "@/components/client/SubstanceSection";
 import NutritionSection from "@/components/client/NutritionSection";
 import ConfirmationDialog from "@/components/client/ConfirmationDialog";
+import DocumentsSection from "@/components/client/DocumentsSection";
 
 function getInitials(name: string) { return name.split(" ").map((n) => n[0]).join("").toUpperCase(); }
 
@@ -101,6 +102,7 @@ export default function ClientDetailPage() {
     { id: "findings", label: "Findings", badge: client.findings.filter((f) => f.status === "active").length },
     { id: "vitals", label: "Vitals" },
     { id: "bloodwork", label: "Bloods" },
+    { id: "documents", label: "Docs" },
     { id: "training", label: "Training" },
     { id: "substance", label: "Protocol" },
     { id: "nutrition", label: "Nutrition" },
@@ -149,6 +151,7 @@ export default function ClientDetailPage() {
             )}
             {activeTab === "vitals" && <VitalsSection wearables={client.wearables} />}
             {activeTab === "bloodwork" && <BloodworkSection labs={client.labs} phaseStartedAt={client.phase_started_at} />}
+            {activeTab === "documents" && <DocumentsSection athleteId={athleteId} />}
             {activeTab === "training" && (
               <TrainingSection
                 key={`training-${activeTab}`}
