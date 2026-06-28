@@ -1,6 +1,6 @@
 # Clinic Platform
 
-A full-stack data consolidation system with pharmacokinetic modeling, streaming health data parsing, LLM-grounded tool-use chat, and an append-only typed operation audit layer. The domain is clinical patient management — the engineering is general-purpose.
+Full-stack patient data consolidation system featuring pharmacokinetic modeling, streaming health data ingestion, LLM-grounded tool-use chat, and a deterministic append-only audit layer. Applied to clinical patient management; the underlying engineering generalizes.
 
 **Next.js 16** · **FastAPI** · **SQLite** · **Claude API** · **TypeScript** · **Python**
 
@@ -8,57 +8,57 @@ A full-stack data consolidation system with pharmacokinetic modeling, streaming 
 
 ---
 
-## What's Interesting Here
+## Technical Highlights
 
 ### Pharmacokinetic Drug-Level Model
 
-86 compounds modeled with ester-specific half-lives, steady-state detection, and day-by-day serum level estimation. Not a lookup table — actual PK math. Handles dose changes, compound stacking, and ester switching with proper level transitions. A user asks "what happens if I skip my injection?" and gets a real decay curve calculated from their logged protocol.
+Models 86 compounds with ester-specific half-lives, steady-state detection, and day-by-day serum level estimation. Computes actual decay curves from logged protocols rather than static lookups. Supports dose changes, compound stacking, and ester switching with correct level transitions across discontinuities.
 
-### Streaming XML Parser for Apple Health
+### Streaming Health Data Parser
 
-Apple Health exports are 100MB+ XML files. The parser uses `iterparse` to stream-process records without loading the entire file into memory. Extracts 10 metric types + workout summaries, normalizes units (lbs→kg, count/min→bpm), validates plausibility ranges, and produces daily aggregates — single pass, constant memory.
+Apple Health exports routinely exceed 100MB. The parser uses `iterparse` for single-pass, constant-memory XML processing. Extracts 10 metric types and workout summaries, normalizes units (lbs→kg, count/min→bpm), validates plausibility ranges, and produces daily aggregates without loading the document into memory.
 
-### LLM Chat with Tool-Use Grounding
+### LLM Tool-Use with Data Grounding
 
-Multi-turn chat engine with 20+ tools. The LLM calls tools to query labs, vitals, drug levels, and compound history, then synthesizes responses grounded in actual data. Two role-scoped tool sets (clinician gets write tools, patient gets read-only + self-logging). Every response cites specific values from tool results — structured to prevent hallucination.
+Multi-turn chat engine backed by 20+ tools for querying structured patient data. The model calls tools to retrieve labs, vitals, drug levels, and compound history, then synthesizes responses anchored to specific returned values. Role-scoped tool sets enforce access boundaries: clinicians receive write tools, patients receive read-only access with self-logging.
 
-### Typed Operation Audit System
+### Deterministic Operation Audit
 
-All write operations go through a closed enumerable set of typed operations. Each operation renders to human-readable text via a pure template function (no LLM-authored confirmations), logs to an append-only operation record, and triggers a notification to the affected user. Every mutation is deterministically auditable.
+Write operations are constrained to a closed enumerable set. Each operation renders to human-readable text through a pure template function, logs to an append-only record, and triggers a downstream notification. No free-text mutations — every state change is reproducible and auditable.
 
-### AI-Powered Data Import
+### Schema-Aware Data Import
 
-Excel/CSV upload with LLM-powered column mapping. Claude Haiku analyzes headers + sample rows, proposes a mapping to the database schema, identifies ambiguous columns, and flags conflicts for human review before import executes.
+Accepts Excel and CSV uploads for structured data onboarding. An LLM analyzes column headers and sample rows, proposes mappings to the target schema, identifies ambiguous columns, and surfaces conflicts for human resolution before execution.
 
 ---
 
-## Feature Walkthrough
+## Feature Overview
 
-### Clinician Side
+### Clinician Interface
 
-**Vitals** — Weight, resting HR, HRV (RMSSD + SDNN), blood pressure. Interactive area charts with draggable brush sliders for date range narrowing.
+**Vitals** — Weight, resting heart rate, HRV (RMSSD and SDNN), blood pressure. Interactive area charts with adjustable date range selection.
 
-![Vitals with interactive charts and range sliders](docs/screenshots/02-vitals.png)
+![Vitals with interactive charts and range controls](docs/screenshots/02-vitals.png)
 
-**Bloodwork** — Lab results grouped by category, flag badges (high/low/normal), expandable metric rows with full charts, reference range overlays, and historical data tables. Search filters across all tests.
+**Bloodwork** — Lab results organized by category with flag indicators. Each metric expands to a full chart with reference range overlays and a historical data table. Search filters across all tests.
 
-![Bloodwork with expandable metric rows](docs/screenshots/03-bloodwork.png)
+![Bloodwork with expandable metric detail](docs/screenshots/03-bloodwork.png)
 
-**Medications** — Compound timeline with PK-modeled estimated levels. Natural language prescribing ("add anastrozole 0.5mg twice weekly") or manual form. Estimated serum levels from the pharmacokinetic model.
+**Medications** — Compound timeline with pharmacokinetically-modeled estimated levels. Supports natural language input or structured form entry. Estimated serum concentrations update from the PK model.
 
-![Medications with PK-modeled drug levels](docs/screenshots/04-medications.png)
+![Medication management with PK-modeled levels](docs/screenshots/04-medications.png)
 
-**Clinical Notes** — SOAP-style types (Assessment, Plan, Subjective, Objective, Follow-up, General). Searchable, date-stamped. Side panel for quick entry, dedicated tab for full documentation.
+**Clinical Notes** — Structured note types (Assessment, Plan, Subjective, Objective, Follow-up, General). Searchable and date-indexed. Side panel for rapid entry alongside a dedicated documentation tab.
 
-![Clinical notes with SOAP types](docs/screenshots/05-notes.png)
+![Clinical notes](docs/screenshots/05-notes.png)
 
-### Patient Side
+### Patient Interface
 
-**Dashboard** — Wearable trends (Apple Health data), PK-estimated drug levels, clinician-set care plan, compound self-logging, notification queue for clinician actions.
+**Dashboard** — Consolidated wearable trends from Apple Health, PK-estimated drug levels for all active medications, clinician-defined care plan, compound self-logging, and a notification queue for clinician actions.
 
-![Patient dashboard with wearable data and PK levels](docs/screenshots/06-patient-dashboard.png)
+![Patient dashboard](docs/screenshots/06-patient-dashboard.png)
 
-**Onboarding** — Multi-step wizard for importing patient data from spreadsheets with AI column mapping.
+**Onboarding** — Multi-step import wizard with AI-powered column mapping for migrating existing patient data from spreadsheets.
 
 ![Onboarding wizard](docs/screenshots/07-onboarding.png)
 
@@ -67,56 +67,51 @@ Excel/CSV upload with LLM-powered column mapping. Claude Haiku analyzes headers 
 ## Architecture
 
 ```
-Next.js 16 Frontend (React 19, TypeScript, Tailwind CSS 4)
+Next.js 16 (React 19, TypeScript, Tailwind CSS 4)
     │
-    │  REST API (40+ endpoints)
+    │  REST API · 40+ endpoints
     ▼
-FastAPI Backend (Python 3.11+)
+FastAPI (Python 3.11+)
     │
-    ├── SQLite (WAL mode, 30+ tables)
-    ├── Claude API (tool-use chat, Vision PDF extraction, structured data parsing)
-    ├── PK Model (86 compounds, day-by-day pharmacokinetic estimates)
-    ├── Apple Health Parser (streaming iterparse, 10 metric types)
-    ├── Extraction Pipeline (PDF → LOINC normalization → validation)
-    └── Compound Database (86 compounds with half-lives, dose ranges, monitoring markers)
+    ├── SQLite · WAL mode · 30+ tables
+    ├── Claude API · tool-use chat · Vision PDF extraction · structured parsing
+    ├── PK Model · 86 compounds · day-by-day level estimation
+    ├── Health Parser · streaming iterparse · 10 metric types
+    ├── Extraction Pipeline · PDF → LOINC normalization → validation
+    └── Compound Database · 86 entries · half-lives · dose ranges · monitoring markers
 ```
-
----
 
 ## Tech Stack
 
-| Layer | Technology |
-|-------|-----------|
+| Layer | Technologies |
+|-------|-------------|
 | Frontend | Next.js 16, React 19, TypeScript, Tailwind CSS 4, Recharts, Framer Motion |
-| Backend | Python, FastAPI, Pydantic, SQLite (WAL mode) |
-| AI/LLM | Claude API — multi-turn tool-use chat, Vision PDF extraction, structured data parsing |
-| Data | 30+ table schema, LOINC-normalized lab data, Apple Health XML streaming, PK modeling |
+| Backend | Python, FastAPI, Pydantic, SQLite (WAL) |
+| AI | Claude API — multi-turn tool-use, Vision extraction, structured data parsing |
+| Data | LOINC-normalized labs, Apple Health streaming ingestion, pharmacokinetic modeling |
 
----
-
-## Project Structure
+## Structure
 
 ```
-├── .frontend/src/
-│   ├── app/
-│   │   ├── clinician/       # Roster, patient detail (9 tabs), onboarding wizard
-│   │   └── patient/         # Patient dashboard, self-logging
-│   ├── components/          # 15 shared components (charts, forms, panels)
-│   └── lib/                 # Types, API client, formatters
-├── .src/clinic/
-│   ├── api.py               # 40+ REST endpoints, role-scoped access
-│   ├── chat.py              # LLM engine, tool dispatch, role-scoped tool sets
-│   ├── pk_model.py          # Pharmacokinetic level estimation
-│   ├── compound_db.py       # 86 compounds with PK parameters
-│   ├── apple_health.py      # Streaming XML parser (iterparse)
-│   ├── extraction/          # PDF → LOINC pipeline (extractor, validator, schema)
-│   ├── llm/                 # 20+ tool definitions, context builders
-│   ├── database.py          # SQLite schema (30+ tables)
-│   ├── operations.py        # Typed operation set with deterministic rendering
-│   └── onboarding.py        # LLM-powered spreadsheet import
-└── docs/screenshots/
+.frontend/src/
+├── app/clinician/          Roster · patient detail (9 tabs) · onboarding
+├── app/patient/            Dashboard · self-logging
+├── components/             15 shared components
+└── lib/                    Types · API client · formatters
+
+.src/clinic/
+├── api.py                  40+ endpoints · role-scoped access
+├── chat.py                 LLM engine · tool dispatch · role scoping
+├── pk_model.py             Pharmacokinetic level estimation
+├── compound_db.py          86 compounds with PK parameters
+├── apple_health.py         Streaming XML parser
+├── extraction/             PDF → LOINC pipeline
+├── llm/                    20+ tool definitions · context builders
+├── database.py             Schema (30+ tables)
+├── operations.py           Typed operations · deterministic rendering
+└── onboarding.py           LLM-powered spreadsheet import
 ```
 
 ---
 
-**Dhruv Singh** · University of Washington, Computer Science
+**Dhruv Singh** · University of Washington · Computer Science
