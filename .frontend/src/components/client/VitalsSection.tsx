@@ -18,7 +18,7 @@ export default function VitalsSection({ wearables }: VitalsSectionProps) {
   }
 
   const metrics = Object.entries(byMetric)
-    .map(([key, data]) => ({ key, ...data, meta: WEARABLE_META[key] || { label: key, color: "#9B948D", priority: 99 } }))
+    .map(([key, data]) => ({ key, ...data, meta: WEARABLE_META[key] || { label: key, color: "#565B6E", priority: 99 } }))
     .sort((a, b) => a.meta.priority - b.meta.priority);
 
   function computeTrend(history: { date: string; value: number }[]): { delta: number; pct: number; direction: string } | null {
@@ -27,7 +27,7 @@ export default function VitalsSection({ wearables }: VitalsSectionProps) {
     const last = history[history.length - 1].value;
     const delta = Math.round((last - first) * 10) / 10;
     const pct = first > 0 ? Math.round((last - first) / first * 1000) / 10 : 0;
-    return { delta, pct, direction: delta > 0 ? "↑" : delta < 0 ? "↓" : "→" };
+    return { delta, pct, direction: delta > 0 ? "\u2191" : delta < 0 ? "\u2193" : "\u2192" };
   }
 
   const weight = metrics.find((m) => m.key === "weight_kg" || m.key === "weight");
@@ -35,49 +35,53 @@ export default function VitalsSection({ wearables }: VitalsSectionProps) {
   const demoted = metrics.filter((m) => m.meta.priority >= 10);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
+      {/* Weight — primary metric */}
       {weight && (
-        <div className="rounded-xl p-5 border" style={{ borderColor: "var(--color-border-card)", background: "var(--color-bg-card)", boxShadow: "var(--shadow-card)" }}>
-          <div className="flex items-baseline gap-2 mb-2">
-            <span className="text-xs font-medium uppercase tracking-wider" style={{ color: weight.meta.color }}>{weight.meta.label}</span>
-            <span className="ml-auto text-xs" style={{ color: "var(--color-text-muted)" }}>{weight.latest.source}</span>
+        <div className="border p-4" style={{ borderColor: "var(--color-border-light)", background: "var(--color-bg-card)", borderRadius: "3px" }}>
+          <div className="flex items-baseline gap-2 mb-1">
+            <span className="text-[10px] font-medium uppercase tracking-wider" style={{ color: weight.meta.color }}>{weight.meta.label}</span>
+            <span className="text-[10px] ml-auto" style={{ fontFamily: "'IBM Plex Mono', monospace", color: "var(--color-text-muted)" }}>{weight.latest.source}</span>
           </div>
-          <div className="flex items-baseline gap-3">
-            <p className="text-3xl font-medium" style={{ fontFamily: "'IBM Plex Mono', monospace", color: "var(--color-text-primary)" }}>
+          <div className="flex items-baseline gap-2">
+            <p className="text-2xl font-semibold" style={{ fontFamily: "'IBM Plex Mono', monospace" }}>
               {formatMetric(weight.latest.value_mean, weight.latest.unit)}
             </p>
             {(() => {
               const trend = computeTrend(weight.history);
               if (!trend) return null;
-              const color = trend.delta > 0 ? "#C98B2F" : trend.delta < 0 ? "#4A7FA5" : "var(--color-text-muted)";
+              const color = trend.delta > 0 ? "#D4952A" : trend.delta < 0 ? "#4C8DFF" : "var(--color-text-muted)";
               return (
-                <span className="text-sm font-medium" style={{ color }}>
+                <span className="text-xs" style={{ fontFamily: "'IBM Plex Mono', monospace", color }}>
                   {trend.direction} {trend.delta > 0 ? "+" : ""}{trend.delta}{weight.latest.unit} ({trend.pct > 0 ? "+" : ""}{trend.pct}%)
                 </span>
               );
             })()}
           </div>
-          <div className="mt-3"><MetricChart data={weight.history} color={weight.meta.color} height={200} unit={weight.latest.unit} /></div>
+          <div className="mt-2"><MetricChart data={weight.history} color={weight.meta.color} height={190} unit={weight.latest.unit} showBrush={true} /></div>
         </div>
       )}
-      <div className="grid grid-cols-2 gap-4">
+
+      {/* Secondary vitals — grid */}
+      <div className="grid grid-cols-2 gap-3">
         {others.map((m) => (
-          <div key={m.key} className="rounded-xl p-4 border" style={{ borderColor: "var(--color-border-card)", background: "var(--color-bg-card)", boxShadow: "var(--shadow-card)" }}>
+          <div key={m.key} className="border p-3" style={{ borderColor: "var(--color-border-light)", background: "var(--color-bg-card)", borderRadius: "3px" }}>
             <div className="flex items-baseline gap-2 mb-1">
-              <span className="text-xs font-medium" style={{ color: "var(--color-text-muted)" }}>{m.meta.label}</span>
-              <span className="ml-auto text-[10px]" style={{ color: "var(--color-text-muted)" }}>{m.latest.source}</span>
+              <span className="text-[10px] font-medium uppercase tracking-wider" style={{ color: "var(--color-text-muted)" }}>{m.meta.label}</span>
             </div>
-            <p className="text-xl font-medium mb-2" style={{ fontFamily: "'IBM Plex Mono', monospace" }}>{formatMetric(m.latest.value_mean, m.latest.unit)}</p>
-            <MetricChart data={m.history} color={m.meta.color} height={120} unit={m.latest.unit} />
+            <p className="text-lg font-medium mb-2" style={{ fontFamily: "'IBM Plex Mono', monospace" }}>{formatMetric(m.latest.value_mean, m.latest.unit)}</p>
+            <MetricChart data={m.history} color={m.meta.color} height={120} unit={m.latest.unit} showBrush={true} />
           </div>
         ))}
       </div>
+
+      {/* Demoted */}
       {demoted.length > 0 && (
-        <div className="flex gap-3">
+        <div className="flex gap-2">
           {demoted.map((m) => (
-            <div key={m.key} className="rounded-lg px-3 py-2 border flex items-center gap-3" style={{ borderColor: "var(--color-border-card)", background: "var(--color-bg-secondary)" }}>
-              <span className="text-xs" style={{ color: "var(--color-text-muted)" }}>{m.meta.label}</span>
-              <span className="text-sm" style={{ fontFamily: "'IBM Plex Mono', monospace", color: "var(--color-text-secondary)" }}>{formatMetric(m.latest.value_mean, m.latest.unit)}</span>
+            <div key={m.key} className="px-2.5 py-1.5 border flex items-center gap-2" style={{ borderColor: "var(--color-border-light)", background: "var(--color-bg-secondary)", borderRadius: "3px" }}>
+              <span className="text-[10px]" style={{ color: "var(--color-text-muted)" }}>{m.meta.label}</span>
+              <span className="text-xs" style={{ fontFamily: "'IBM Plex Mono', monospace", color: "var(--color-text-secondary)" }}>{formatMetric(m.latest.value_mean, m.latest.unit)}</span>
             </div>
           ))}
         </div>

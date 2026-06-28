@@ -1,6 +1,6 @@
 "use client";
 
-import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine, Brush } from "recharts";
 import { formatDateShort } from "@/lib/formatters";
 
 interface MetricChartProps {
@@ -8,6 +8,7 @@ interface MetricChartProps {
   color: string;
   height?: number;
   unit?: string;
+  showBrush?: boolean;
   refLow?: number;
   refHigh?: number;
   showRefRange?: boolean;
@@ -15,7 +16,7 @@ interface MetricChartProps {
 
 let _chartId = 0;
 
-export default function MetricChart({ data, color, height = 120, unit = "", refLow, refHigh, showRefRange = false }: MetricChartProps) {
+export default function MetricChart({ data, color, height = 120, unit = "", refLow, refHigh, showRefRange = false, showBrush = false }: MetricChartProps) {
   const gradId = `mc-${++_chartId}`;
   if (!data.length) return <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>No data</div>;
 
@@ -28,57 +29,65 @@ export default function MetricChart({ data, color, height = 120, unit = "", refL
     <ResponsiveContainer width="100%" height={height}>
       <AreaChart data={data} margin={{ top: 4, right: 4, bottom: 0, left: -20 }}>
         <defs>
-          <linearGradient id={`${gradId}`} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor={color} stopOpacity={0.2} />
+          <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="5%" stopColor={color} stopOpacity={0.15} />
             <stop offset="95%" stopColor={color} stopOpacity={0.02} />
           </linearGradient>
         </defs>
         <XAxis
           dataKey="date"
-          tick={{ fontSize: 10, fill: "var(--color-text-muted)" }}
+          tick={{ fontSize: 10, fill: "var(--color-text-muted)", fontFamily: "'IBM Plex Mono', monospace" }}
           tickFormatter={(d) => formatDateShort(d)}
           tickLine={false}
-          axisLine={false}
+          axisLine={{ stroke: "var(--color-border-light)" }}
           interval="preserveStartEnd"
         />
         <YAxis
           domain={[min - padding, max + padding]}
-          tick={{ fontSize: 10, fill: "var(--color-text-muted)" }}
+          tick={{ fontSize: 10, fill: "var(--color-text-muted)", fontFamily: "'IBM Plex Mono', monospace" }}
           tickLine={false}
           axisLine={false}
-          tickFormatter={(v: number) => {
-            const rounded = Math.round(v * 10) / 10;
-            return rounded % 1 === 0 ? `${rounded}` : `${rounded}`;
-          }}
+          tickFormatter={(v: number) => `${Math.round(v * 10) / 10}`}
           width={45}
         />
         <Tooltip
           contentStyle={{
             background: "var(--color-bg-card)",
-            border: "1px solid var(--color-border-card)",
-            borderRadius: "8px",
-            boxShadow: "var(--shadow-elevated)",
-            fontSize: "12px",
+            border: "1px solid var(--color-border-emphasis)",
+            borderRadius: "3px",
+            fontSize: "11px",
             fontFamily: "'IBM Plex Mono', monospace",
+            color: "var(--color-text-primary)",
           }}
-          formatter={(value: number) => [`${Math.round(value * 10) / 10} ${unit}`, ""]}
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          formatter={(value: any) => [`${Math.round(Number(value) * 10) / 10} ${unit}`, ""]}
           labelFormatter={(label) => formatDateShort(label as string)}
         />
         {showRefRange && refLow != null && refHigh != null && (
           <>
-            <ReferenceLine y={refLow} stroke="#5A8A5C" strokeWidth={2} strokeDasharray="6 3" label={{ value: `Low: ${refLow}`, position: "insideBottomLeft", fontSize: 10, fontWeight: 600, fill: "#5A8A5C" }} />
-            <ReferenceLine y={refHigh} stroke="#5A8A5C" strokeWidth={2} strokeDasharray="6 3" label={{ value: `High: ${refHigh}`, position: "insideTopLeft", fontSize: 10, fontWeight: 600, fill: "#5A8A5C" }} />
+            <ReferenceLine y={refLow} stroke="#3FB950" strokeWidth={1} strokeDasharray="4 3" label={{ value: `${refLow}`, position: "insideBottomLeft", fontSize: 9, fill: "#3FB950", fontFamily: "'IBM Plex Mono', monospace" }} />
+            <ReferenceLine y={refHigh} stroke="#3FB950" strokeWidth={1} strokeDasharray="4 3" label={{ value: `${refHigh}`, position: "insideTopLeft", fontSize: 9, fill: "#3FB950", fontFamily: "'IBM Plex Mono', monospace" }} />
           </>
         )}
         <Area
           type="monotone"
           dataKey="value"
           stroke={color}
-          strokeWidth={2}
+          strokeWidth={1.5}
           fill={`url(#${gradId})`}
           dot={false}
-          activeDot={{ r: 4, fill: color, stroke: "white", strokeWidth: 2 }}
+          activeDot={{ r: 3, fill: color, stroke: "var(--color-bg-card)", strokeWidth: 2 }}
         />
+        {showBrush && data.length > 4 && (
+          <Brush
+            dataKey="date"
+            height={20}
+            stroke="var(--color-border-emphasis)"
+            fill="var(--color-bg-secondary)"
+            tickFormatter={(d) => formatDateShort(d)}
+            travellerWidth={8}
+          />
+        )}
       </AreaChart>
     </ResponsiveContainer>
   );

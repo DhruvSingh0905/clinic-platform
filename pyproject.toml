@@ -1,14 +1,16 @@
 [project]
-name = "coach-platform"
+name = "clinic-platform"
 version = "0.1.0"
-description = "Coach Platform — domain-aware client data consolidation for physique coaches"
-requires-python = ">=3.12"
+description = "Clinic Platform — domain-aware patient data consolidation for TRT/wellness clinics"
+requires-python = ">=3.11"
 dependencies = [
     "fastapi>=0.115.0",
     "uvicorn[standard]>=0.32.0",
     "pydantic>=2.0",
     "python-dotenv>=1.0",
     "anthropic>=0.40.0",
+    "openpyxl>=3.1.0",
+    "python-multipart>=0.0.9",
 ]
 
 [project.optional-dependencies]

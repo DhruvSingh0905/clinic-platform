@@ -10,8 +10,7 @@ interface SignalChartProps {
   height?: number;
 }
 
-/** Dynamic mini-chart for any signal data. Works with any data shape. */
-export default function SignalChart({ dataPoints, color, width = 120, height = 48 }: SignalChartProps) {
+export default function SignalChart({ dataPoints, color, width = 100, height = 32 }: SignalChartProps) {
   if (dataPoints.length < 2) return null;
 
   return (
@@ -21,13 +20,15 @@ export default function SignalChart({ dataPoints, color, width = 120, height = 4
           <Tooltip
             contentStyle={{
               background: "var(--color-bg-card)",
-              border: "1px solid var(--color-border-card)",
-              borderRadius: "6px",
+              border: "1px solid var(--color-border-emphasis)",
+              borderRadius: "3px",
               fontSize: "10px",
               fontFamily: "'IBM Plex Mono', monospace",
-              padding: "4px 8px",
+              padding: "3px 6px",
+              color: "var(--color-text-primary)",
             }}
-            formatter={(v: number) => [`${Math.round(v * 10) / 10}`, ""]}
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            formatter={(v: any) => [`${Math.round(Number(v) * 10) / 10}`, ""]}
             labelFormatter={(l) => formatDateShort(l as string)}
           />
           <Line
@@ -36,7 +37,7 @@ export default function SignalChart({ dataPoints, color, width = 120, height = 4
             stroke={color}
             strokeWidth={1.5}
             dot={false}
-            activeDot={{ r: 3, fill: color, stroke: "white", strokeWidth: 1.5 }}
+            activeDot={{ r: 2.5, fill: color, stroke: "var(--color-bg-card)", strokeWidth: 1.5 }}
           />
         </LineChart>
       </ResponsiveContainer>

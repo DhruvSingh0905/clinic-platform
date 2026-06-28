@@ -1,10 +1,10 @@
-export interface Coach {
+export interface Clinician {
   id: string;
   name: string;
   email: string;
 }
 
-export interface Athlete {
+export interface Patient {
   id: string;
   name: string;
   email: string;
@@ -23,8 +23,8 @@ export interface Signal {
 
 export interface Finding {
   id: string;
-  athlete_id?: string;
-  athlete_name?: string;
+  patient_id?: string;
+  patient_name?: string;
   detector_id: string;
   theme: string;
   severity: "concerning" | "notable" | "info";
@@ -38,11 +38,8 @@ export interface Finding {
 }
 
 export interface RosterEntry {
-  athlete: Athlete;
-  top_finding: Finding | null;
-  finding_count: number;
-  phase: string;
-  day_in_phase: number;
+  patient: Patient;
+  treatment_status: string;
 }
 
 export interface SubstanceEvent {
@@ -88,7 +85,6 @@ export interface LabResult {
 export interface TrainingBlock {
   id: string;
   name: string;
-  block_type: string;
   start_date: string;
   end_date: string | null;
   notes: string | null;
@@ -112,12 +108,11 @@ export interface RecoveryNote {
   created_at: string;
 }
 
-export interface ClientDetail {
-  athlete: Athlete;
-  phase: string;
-  phase_started_at?: string;
-  day_in_phase: number;
-  findings: Finding[];
+export interface PatientDetail {
+  patient: Patient;
+  treatment_status: string;
+  treatment_days?: number;
+  treatment_started_at?: string;
   wearables: WearableMetric[];
   labs: LabResult[];
   substance_events: SubstanceEvent[];
@@ -142,6 +137,14 @@ export interface LiftData {
   sessions: LiftSession[];
   status: "stall" | "drop" | "progressing";
   trend_pct: number;
+}
+
+export interface RoutinePush {
+  id: number;
+  title: string;
+  exercises: { title: string; exercise_template_id: string; sets: { type: string; weight_kg?: number; reps: number }[] }[];
+  pushed_at: string;
+  status: string;
 }
 
 export interface Notification {

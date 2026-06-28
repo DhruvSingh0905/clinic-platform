@@ -24,5 +24,11 @@ __pycache__/
 .DS_Store
 Thumbs.db
 
+# Uploads (user data)
+uploads/
+
+# Build artifacts
+.frontend/tsconfig.tsbuildinfo
+
 # Plans
 docs/superpowers/

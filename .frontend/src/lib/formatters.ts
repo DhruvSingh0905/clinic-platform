@@ -1,6 +1,5 @@
 /**
- * Shared formatting utilities for the Coach Platform.
- * Keeps numeric display clean and consistent across all views.
+ * Shared formatting utilities for the Clinic Platform.
  */
 
 /** Get unit preference (stored in localStorage) */
@@ -15,7 +14,7 @@ export function setUnitPref(unit: "kg" | "lbs") {
 
 function kgToLbs(kg: number): number { return kg * 2.20462; }
 
-/** Round weight to nearest 0.5kg (Hevy stores exact lbs→kg conversions with float noise) */
+/** Round weight to nearest 0.5kg */
 export function cleanWeight(kg: number): number {
   return Math.round(kg * 2) / 2;
 }
@@ -41,17 +40,25 @@ export function formatMetric(value: number, unit: string): string {
   return `${Math.round(value * 10) / 10} ${unit}`;
 }
 
+/** Ensure date-only strings are treated as local time, not UTC */
+function localDate(d: string): Date {
+  // "2026-07-02" → parsed as UTC by Date constructor → off-by-one in negative timezones
+  // Adding T12:00:00 ensures it stays on the correct day in any timezone
+  if (/^\d{4}-\d{2}-\d{2}$/.test(d)) return new Date(d + "T12:00:00");
+  return new Date(d);
+}
+
 /** Format ISO date to "May 28, 2026" */
 export function formatDate(d: string): string {
-  return new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  return localDate(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
 /** Format ISO date to short "May 28" */
 export function formatDateShort(d: string): string {
-  return new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  return localDate(d).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
-/** Format sync time as relative: "Just now", "3h ago", "2d ago" */
+/** Format sync time as relative */
 export function formatSyncTime(sync: string | null): string {
   if (!sync) return "Never synced";
   const d = new Date(sync);
@@ -77,60 +84,68 @@ export function findingProvenance(theme: string, timeWindowStart?: string, timeW
   };
   const source = sourceMap[theme] || "data";
   if (timeWindowStart && timeWindowEnd) {
-    return `From ${source} ${formatDateShort(timeWindowStart)} – ${formatDateShort(timeWindowEnd)}`;
+    return `${source} · ${formatDateShort(timeWindowStart)} – ${formatDateShort(timeWindowEnd)}`;
   }
   if (timeWindowStart) {
-    return `From ${source} ${formatDateShort(timeWindowStart)}`;
+    return `${source} · ${formatDateShort(timeWindowStart)}`;
   }
-  return `From ${source}`;
+  return source;
 }
 
-/** Get phase style colors */
-export function getPhaseStyle(phase: string): { bg: string; text: string } {
-  switch (phase) {
-    case "blast": return { bg: "rgba(196, 69, 54, 0.1)", text: "#C44536" };
-    case "cruise": return { bg: "rgba(74, 127, 165, 0.1)", text: "#4A7FA5" };
-    case "prep": return { bg: "rgba(123, 104, 174, 0.1)", text: "#7B68AE" };
-    case "offseason": return { bg: "rgba(90, 138, 92, 0.1)", text: "#5A8A5C" };
-    case "off": return { bg: "rgba(155, 148, 141, 0.1)", text: "#9B948D" };
-    default: return { bg: "rgba(155, 148, 141, 0.1)", text: "#9B948D" };
+/** Treatment status style — muted, functional */
+export function getStatusStyle(status: string): { bg: string; text: string } {
+  switch (status) {
+    case "active_treatment": return { bg: "rgba(63, 185, 80, 0.1)", text: "#3FB950" };
+    case "monitoring": return { bg: "rgba(76, 141, 255, 0.1)", text: "#4C8DFF" };
+    case "tapering": return { bg: "rgba(212, 149, 42, 0.1)", text: "#D4952A" };
+    case "discontinued": return { bg: "rgba(86, 91, 110, 0.1)", text: "#565B6E" };
+    case "initial_consult": return { bg: "rgba(163, 113, 247, 0.1)", text: "#A371F7" };
+    default: return { bg: "rgba(86, 91, 110, 0.1)", text: "#565B6E" };
   }
 }
 
 /** Severity color */
 export function getSeverityColor(severity: "concerning" | "notable" | "info"): string {
   switch (severity) {
-    case "concerning": return "#C44536";
-    case "notable": return "#C98B2F";
-    case "info": return "#4A7FA5";
+    case "concerning": return "#E5534B";
+    case "notable": return "#D4952A";
+    case "info": return "#4C8DFF";
   }
 }
 
 /** Lab flag colors */
-export function getFlagColor(flag: "high" | "low" | "normal"): { bg: string; text: string } {
+export function getFlagColor(flag: string | null | undefined): { bg: string; text: string } {
   switch (flag) {
     case "high": return { bg: "var(--color-severity-concerning-bg)", text: "var(--color-severity-concerning)" };
     case "low": return { bg: "var(--color-severity-notable-bg)", text: "var(--color-severity-notable)" };
     case "normal": return { bg: "var(--color-success-bg)", text: "var(--color-success)" };
+    default: return { bg: "rgba(86, 91, 110, 0.1)", text: "var(--color-text-muted)" };
   }
 }
 
 /** Wearable metric display metadata */
 export const WEARABLE_META: Record<string, { label: string; color: string; priority: number }> = {
-  weight_kg: { label: "Weight", color: "#C98B2F", priority: 1 },
-  weight: { label: "Weight", color: "#C98B2F", priority: 1 },
-  resting_hr: { label: "Resting HR", color: "#C44536", priority: 2 },
-  hrv_rmssd: { label: "HRV (RMSSD)", color: "#4A7FA5", priority: 3 },
-  hrv_sdnn: { label: "HRV (SDNN)", color: "#4A7FA5", priority: 3 },
-  hrv: { label: "HRV", color: "#4A7FA5", priority: 3 },
-  bp_systolic: { label: "BP (Systolic)", color: "#C44536", priority: 4 },
-  bp_diastolic: { label: "BP (Diastolic)", color: "#C98B2F", priority: 4 },
-  recovery_score: { label: "Recovery", color: "#5A8A5C", priority: 10 },
-  recovery: { label: "Recovery", color: "#5A8A5C", priority: 10 },
-  heart_rate: { label: "Heart Rate", color: "#C44536", priority: 5 },
+  weight_kg: { label: "Weight", color: "#D4952A", priority: 1 },
+  weight: { label: "Weight", color: "#D4952A", priority: 1 },
+  resting_hr: { label: "Resting HR", color: "#E5534B", priority: 2 },
+  hrv_rmssd: { label: "HRV (RMSSD)", color: "#4C8DFF", priority: 3 },
+  hrv_sdnn: { label: "HRV (SDNN)", color: "#4C8DFF", priority: 3 },
+  hrv: { label: "HRV", color: "#4C8DFF", priority: 3 },
+  bp_systolic: { label: "BP Sys", color: "#E5534B", priority: 4 },
+  bp_diastolic: { label: "BP Dia", color: "#D4952A", priority: 4 },
+  recovery_score: { label: "Recovery", color: "#3FB950", priority: 10 },
+  recovery: { label: "Recovery", color: "#3FB950", priority: 10 },
+  calories_consumed: { label: "Calories", color: "#D4952A", priority: 11 },
+  protein: { label: "Protein", color: "#E5534B", priority: 12 },
+  fat: { label: "Fat", color: "#4C8DFF", priority: 13 },
+  carbs: { label: "Carbs", color: "#D4952A", priority: 14 },
+  training_duration: { label: "Training Duration", color: "#A371F7", priority: 15 },
+  training_calories: { label: "Training Calories", color: "#A371F7", priority: 16 },
+  training_load: { label: "Training Load", color: "#A371F7", priority: 17 },
+  heart_rate: { label: "Heart Rate", color: "#E5534B", priority: 5 },
 };
 
-/** Signal label → wearable metric key mapping for finding graphs */
+/** Signal label -> wearable metric key mapping for finding graphs */
 export const SIGNAL_TO_METRIC: Record<string, string> = {
   "Resting HR": "resting_hr",
   "Resting Heart Rate": "resting_hr",

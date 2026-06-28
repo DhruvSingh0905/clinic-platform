@@ -72,7 +72,7 @@ export default function LandingPage() {
           className="text-5xl md:text-6xl font-semibold tracking-tight mb-4"
           style={{ fontFamily: "'Crimson Pro', serif", color: "#FAFAF7" }}
         >
-          Coach Platform
+          Clinic Platform
         </motion.h1>
 
         <motion.p
@@ -82,18 +82,18 @@ export default function LandingPage() {
           className="text-lg md:text-xl mb-16 tracking-wide"
           style={{ fontFamily: "'Outfit', sans-serif", color: "#9B948D", letterSpacing: "0.02em" }}
         >
-          Domain-aware client data for physique coaches
+          Domain-aware patient data for clinicians
         </motion.p>
 
         {/* Role cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-2xl mx-auto">
-          {/* Coach Card */}
+          {/* Clinician Card */}
           <motion.div
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.45 }}
             whileHover={{ y: -4, transition: { duration: 0.2 } }}
-            onClick={() => router.push("/coach")}
+            onClick={() => router.push("/clinician")}
             className="group cursor-pointer rounded-2xl p-8 text-left"
             style={{
               background: "rgba(255, 255, 255, 0.03)",
@@ -127,13 +127,13 @@ export default function LandingPage() {
               className="text-xl font-medium mb-2"
               style={{ fontFamily: "'Crimson Pro', serif", color: "#FAFAF7" }}
             >
-              Coach
+              Clinician
             </h2>
             <p
               className="text-sm mb-6 leading-relaxed"
               style={{ color: "#9B948D" }}
             >
-              Ranked roster queue, client deep-dives, training and nutrition management
+              Ranked roster queue, patient deep-dives, training and nutrition management
             </p>
 
             <div
@@ -143,20 +143,20 @@ export default function LandingPage() {
                 color: "#C17A2F",
               }}
             >
-              Enter as Coach
+              Enter as Clinician
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M3 8h10M9 4l4 4-4 4" />
               </svg>
             </div>
           </motion.div>
 
-          {/* Athlete Card */}
+          {/* Patient Card */}
           <motion.div
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.55 }}
             whileHover={{ y: -4, transition: { duration: 0.2 } }}
-            onClick={() => router.push("/athlete")}
+            onClick={() => router.push("/patient")}
             className="group cursor-pointer rounded-2xl p-8 text-left"
             style={{
               background: "rgba(255, 255, 255, 0.03)",
@@ -187,7 +187,7 @@ export default function LandingPage() {
               className="text-xl font-medium mb-2"
               style={{ fontFamily: "'Crimson Pro', serif", color: "#FAFAF7" }}
             >
-              Athlete
+              Patient
             </h2>
             <p
               className="text-sm mb-6 leading-relaxed"
@@ -203,7 +203,7 @@ export default function LandingPage() {
                 color: "#5A8A5C",
               }}
             >
-              Enter as Athlete
+              Enter as Patient
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M3 8h10M9 4l4 4-4 4" />
               </svg>
