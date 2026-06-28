@@ -1,6 +1,6 @@
 # Clinic Platform
 
-Full-stack patient data consolidation system featuring pharmacokinetic modeling, streaming health data ingestion, LLM-grounded tool-use chat, and a deterministic append-only audit layer. Applied to clinical patient management; the underlying engineering generalizes.
+Full-stack patient health-data platform for specialty endocrine and hormone clinics. Streaming ingestion, deterministic pharmacokinetic modeling, and a tool-grounded LLM layer that never emits an ungrounded number.
 
 **Next.js 16** · **FastAPI** · **SQLite** · **Claude API** · **TypeScript** · **Python**
 
